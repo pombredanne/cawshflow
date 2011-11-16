@@ -1,0 +1,66 @@
+#! /usr/bin/env python
+
+import re
+import boto
+import logging
+import argparse
+import cawshflow
+from boto import ec2
+
+# Read in some of our arguments
+parser = argparse.ArgumentParser(description='How much is your AWS hosting costing you?')
+
+parser.add_argument('--access-id', dest='accessID', default=None,
+	help='The Access ID associated with your account')
+parser.add_argument('--secret-key', dest='secretKey', default=None,
+	help='The secret key associated with your account')
+parser.add_argument('--quiet', dest='verbose', action='store_false', default=True,
+	help='Be quiet about progress')
+parser.add_argument('--instance-name', dest='instanceName', default='*',
+	help='Only report instances whose name matches this glob')
+parser.add_argument('--key-name', dest='keyName', default='*',
+	help='Only report instances whose key name matches this glob')
+parser.add_argument('--security-group', dest='securityGroup', default='*',
+	help='Only report instances in a security group matching this glob')
+parser.add_argument('--instance-type', dest='instanceType', default='*',
+	help='Only report instances of this type')
+parser.add_argument('--ami-id', dest='amiID', default='*',
+	help='Only report instances with this AMI ID')
+
+args, remaining = parser.parse_known_args()
+
+tags = {}
+while len(remaining):
+	next = remaining.pop(0)
+	if '=' in next:
+		key, value = next.split('=')
+	else:
+		key = next
+		try:
+			value = remaining.pop(0)
+		except:
+			break
+	tags[key.strip('-')] = value
+
+if args.verbose:
+	cawshflow.logger.setLevel(logging.INFO)
+else:
+	cawshflow.logger.setLevel(logging.ERROR)
+
+# First, connect
+ec2connection = ec2.EC2Connection(args.accessID, args.secretKey)
+
+# Get a list of our instances
+instances = cawshflow.InstanceList(ec2connection,
+	args.instanceName,
+	args.keyName,
+	args.securityGroup,
+	args.instanceType,
+	args.amiID,
+	tags)
+# Associate each of the volumes with their instance
+instances.associateVolumes()
+# At this point, prices are calculated. Now, let's just match them
+instances.reportPrices()
+
+# Lastly, we should try to get S3 usage
