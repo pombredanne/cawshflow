@@ -4,13 +4,13 @@ try:
 	from setuptools import setup
 	from setuptools.extension import Extension
 	extra = {
-		'install_requires' : ['boto']
+		'install_requires' : ['boto', 'argparse']
 	}
 except ImportError:
 	from distutils.core import setup
 	from distutils.extension import Extension
 	extra = {
-		'dependencies' : ['boto']
+		'dependencies' : ['boto', 'argparse']
 	}
 
 setup(name       = 'cawshflow',
